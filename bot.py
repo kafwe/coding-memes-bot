@@ -18,3 +18,18 @@ def create_tweet(post):
     }
 
     return tweet
+
+
+def is_valid(post):
+    """Checks if a reddit post is valid for a tweet.
+    That is the post type is Meme and it has an image."""
+
+    is_text = post["data"]["is_self"]
+
+    if is_text:
+        return False
+
+    is_image = post["data"]["url"].endswith((".jpg", ".png"))
+    is_meme = post["data"]["link_flair_text"] == "Meme"
+
+    return is_meme and is_image
