@@ -25,11 +25,20 @@ except Exception as e:
 
 
 def main():
-    reddit_posts = get_posts("ProgrammerHumor")
+    try:
+        reddit_posts = get_posts("ProgrammerHumor")
+    except Exception as e:
+        logger.error("ERROR: Unexpected error: Could not connect to Reddit API.")
+        sys.exit()
 
     for reddit_post in reddit_posts:
         if is_valid(reddit_post):
             post = format_post(reddit_post)
+
+            try:
+                insert_post(post)
+            except psycopg2.errors.UniqueViolation:
+                logger.info(f"Post {post['id']} already exists in database")
 
 
 def get_posts(subreddit):
@@ -76,3 +85,22 @@ def format_post(post):
     }
 
     return post
+
+
+def insert_post(post):
+    """Inserts a reddit post into the database"""
+
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "INSERT INTO posts (post_id, meme_text, author, subreddit, reddit_post_url, \
+            image_url) VALUES (%s, %s, %s, %s, %s, %s)",
+            (
+                post["id"],
+                post["text"],
+                post["author"],
+                post["subreddit"],
+                post["reddit_post_url"],
+                post["image_url"],
+            ),
+        )
+        connection.commit()
