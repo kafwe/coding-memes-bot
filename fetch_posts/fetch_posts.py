@@ -1,5 +1,27 @@
 import requests
 import html
+import logging
+import psycopg2
+import os
+import sys
+
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
+# Connect to Postgres
+try:
+    connection = psycopg2.connect(
+        user=os.environ["DB_USER"],
+        password=os.environ["DB_PASSWORD"],
+        host=os.environ["DB_HOST"],
+        port=os.environ["DB_PORT"],
+        database=os.environ["DB_NAME"],
+    )
+except Exception as e:
+    logger.error("ERROR: Unexpected error: Could not connect to Postgres instance.")
+    logger.error(e)
+    sys.exit()
 
 
 def main():
