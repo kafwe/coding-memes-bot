@@ -85,3 +85,11 @@ def get_post():
         post = cursor.fetchone()
 
     return post
+
+
+def update_post(post):
+    """Updates the post in the database to tweeted=true"""
+
+    with connection.cursor() as cursor:
+        cursor.execute("UPDATE posts SET tweeted=true WHERE id=%s", (post["id"],))
+        connection.commit()
