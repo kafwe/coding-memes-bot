@@ -40,11 +40,12 @@ def create_tweet(post):
 
     tweet = {
         "id": post[0],
-        "text": post[1],
-        "author": post[2],
-        "subreddit": post[3],
-        "reddit_post_url": post[4],
-        "image_url": post[5],
+        "created_at": post[1],
+        "text": post[2],
+        "author": post[3],
+        "subreddit": post[4],
+        "reddit_post_url": post[5],
+        "image_url": post[6],
     }
 
     return tweet
@@ -72,3 +73,15 @@ def tweet_meme_info(tweet):
         \n\n{tweet["reddit_post_url"]}',
         in_reply_to_status_id=last_tweet.id,
     )
+
+
+def get_post():
+    """Gets the most recent untweeted post from the database."""
+
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "SELECT * FROM posts WHERE tweeted=false ORDER BY created_at ASC LIMIT 1"
+        )
+        post = cursor.fetchone()
+
+    return post
