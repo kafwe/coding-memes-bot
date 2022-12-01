@@ -1,2 +1,7 @@
 /.vscode
 /venv
+/fetch_posts/*.zip
+/fetch_posts/.DS_Store
+/bot/*.zip
+/bot/.DS_Store
+.DS_Store

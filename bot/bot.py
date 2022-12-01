@@ -1,3 +1,6 @@
+"""Lambda function that tweets memes from the database.
+"""
+
 import requests
 import tweepy
 from PIL import Image
@@ -6,6 +9,7 @@ import os
 import logging
 import psycopg2
 import sys
+
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -28,6 +32,7 @@ except Exception as e:
 auth = tweepy.OAuthHandler(
     os.environ["TWITTER_CONSUMER_KEY"], os.environ["TWITTER_CONSUMER_SECRET"]
 )
+
 auth.set_access_token(
     os.environ["TWITTER_ACCESS_TOKEN"], os.environ["TWITTER_ACCESS_TOKEN_SECRET"]
 )
@@ -35,12 +40,25 @@ auth.set_access_token(
 api = tweepy.API(auth)
 
 
+def lambda_handler(event, context):
+    post = get_post()
+
+    if post:
+        tweet = create_tweet(post)
+        tweet_meme(tweet)
+        tweet_meme_info(tweet)
+        update_post(tweet)
+        logger.info(f"Tweeted post {tweet['id']}")
+    else:
+        logger.info("No new posts to tweet")
+
+
 def create_tweet(post):
-    """Creates a tweet from a reddit post"""
+    """Convert a reddit post tuple into a tweet dictionary."""
 
     tweet = {
         "id": post[0],
-        "created_at": post[1],
+        # skip created_at field
         "text": post[2],
         "author": post[3],
         "subreddit": post[4],
@@ -57,9 +75,9 @@ def tweet_meme(tweet):
     response = requests.get(tweet["image_url"])
     image = Image.open(BytesIO(response.content))
     filename = tweet["image_url"].split("/")[-1]
-    image.save(f"tmp/{filename}")
-    media = api.media_upload(filename=f"tmp/{filename}")
-    api.update_status(status=tweet["title"], media_ids=[media.media_id])
+    image.save(f"/tmp/{filename}")
+    media = api.media_upload(filename=f"/tmp/{filename}")
+    api.update_status(status=tweet["text"], media_ids=[media.media_id])
 
 
 def tweet_meme_info(tweet):
@@ -91,5 +109,5 @@ def update_post(post):
     """Updates the post in the database to tweeted=true"""
 
     with connection.cursor() as cursor:
-        cursor.execute("UPDATE posts SET tweeted=true WHERE id=%s", (post["id"],))
+        cursor.execute("UPDATE posts SET tweeted=true WHERE post_id=%s", (post["id"],))
         connection.commit()

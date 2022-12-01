@@ -1,10 +1,13 @@
+"""Lambda function that fetches posts from Reddit and 
+inserts the valid meme posts from them into the database.
+"""
+
 import requests
 import html
 import logging
 import psycopg2
 import os
 import sys
-
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -18,26 +21,29 @@ try:
         port=os.environ["DB_PORT"],
         database=os.environ["DB_NAME"],
     )
-except Exception as e:
+except psycopg2.errors.OperationalError as e:
     logger.error("ERROR: Unexpected error: Could not connect to Postgres instance.")
     logger.error(e)
     sys.exit()
 
 
-def main():
+def lambda_handler(event, context):
     try:
         reddit_posts = get_posts("ProgrammerHumor")
     except Exception as e:
-        logger.error("ERROR: Unexpected error: Could not connect to Reddit API.")
+        logger.error("ERROR: Unexpected error:")
+        logger.error(e)
         sys.exit()
 
     for reddit_post in reddit_posts:
         if is_valid(reddit_post):
             post = format_post(reddit_post)
 
+            # Prevent duplicate posts
             try:
                 insert_post(post)
             except psycopg2.errors.UniqueViolation:
+                connection.rollback()  # need to rollback because insert failed
                 logger.info(f"Post {post['id']} already exists in database")
 
 
@@ -92,8 +98,8 @@ def insert_post(post):
 
     with connection.cursor() as cursor:
         cursor.execute(
-            "INSERT INTO posts (post_id, meme_text, author, subreddit, reddit_post_url, \
-            image_url) VALUES (%s, %s, %s, %s, %s, %s)",
+            "INSERT INTO posts (post_id, meme_text, author, subreddit, \
+            reddit_post_url, image_url) VALUES (%s, %s, %s, %s, %s, %s)",
             (
                 post["id"],
                 post["text"],
