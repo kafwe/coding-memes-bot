@@ -8,6 +8,7 @@ import logging
 import psycopg2
 import os
 import sys
+import praw
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -26,10 +27,23 @@ except psycopg2.errors.OperationalError as e:
     logger.error(e)
     sys.exit()
 
+# Reddit API client
+try:
+    reddit = praw.Reddit(
+        client_id=os.environ["REDDIT_CLIENT_ID"],
+        client_secret=os.environ["REDDIT_CLIENT_SECRET"],
+        user_agent="scraping posts for @CodingMemesBot twitter bot",
+        refresh_token=os.environ["REDDIT_REFRESH_TOKEN"],
+    )
+except Exception as e:
+    logger.error("ERROR: Unexpected error: Could not connect to Reddit instance.")
+    logger.error(e)
+    sys.exit()
+
 
 def lambda_handler(event, context):
     try:
-        reddit_posts = get_posts("ProgrammerHumor")
+        reddit_posts = reddit.subreddit("ProgrammerHumor").top("day", limit=15)
     except Exception as e:
         logger.error("ERROR: Unexpected error:")
         logger.error(e)
