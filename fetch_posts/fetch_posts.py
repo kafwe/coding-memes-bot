@@ -56,7 +56,9 @@ def get_posts(subreddit):
     )
 
     if response.status_code != 200:
+        logger.error(f'Request failed with status code {response.status_code}. Response content: {response.text}')
         raise Exception("Reddit API request unsuccessful")
+
 
     response = response.json()
     reddit_posts = response["data"]["children"]
