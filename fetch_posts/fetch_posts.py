@@ -2,8 +2,6 @@
 inserts the valid meme posts from them into the database.
 """
 
-import requests
-import html
 import logging
 import psycopg2
 import os
@@ -45,69 +43,32 @@ def lambda_handler(event, context):
     try:
         reddit_posts = reddit.subreddit("ProgrammerHumor").top("day", limit=15)
     except Exception as e:
-        logger.error("ERROR: Unexpected error:")
+        logger.error("ERROR: Reddit API request unsuccessful")
         logger.error(e)
         sys.exit()
 
-    for reddit_post in reddit_posts:
-        if is_valid(reddit_post):
-            post = format_post(reddit_post)
-
+    for post in reddit_posts:
+        if is_valid(post):
             # Prevent duplicate posts
             try:
                 insert_post(post)
             except psycopg2.errors.UniqueViolation:
                 connection.rollback()  # need to rollback because insert failed
-                logger.info(f"Post {post['id']} already exists in database")
-
-
-def get_posts(subreddit):
-    """Gets posts from Reddit API"""
-
-    response = requests.get(
-        f"https://www.reddit.com/r/{subreddit}/top.json?limit=15",
-        headers={"user-agent": "scraping posts for @CodingMemesBot twitter bot"},
-    )
-
-    if response.status_code != 200:
-        logger.error(f'Request failed with status code {response.status_code}. Response content: {response.text}')
-        raise Exception("Reddit API request unsuccessful")
-
-
-    response = response.json()
-    reddit_posts = response["data"]["children"]
-    return reddit_posts
-
+                logger.info(f"Post {post.id} already exists in database")
 
 def is_valid(post):
     """Checks if a reddit post is valid for a tweet.
     That is the post type is Meme and it has an image"""
 
-    is_text = post["data"]["is_self"]
+    is_text = post.is_self
 
     if is_text:
         return False
 
-    is_image = post["data"]["url"].endswith((".jpg", ".png"))
-    is_meme = post["data"]["link_flair_text"] == "Meme"
+    is_image = post.url.endswith((".jpg", ".png", ".jpeg"))
+    is_meme = post.link_flair_text == "Meme"
 
     return is_meme and is_image
-
-
-def format_post(post):
-    """Formats a reddit post for a tweet"""
-
-    post = {
-        "id": post["data"]["id"],
-        "text": html.unescape(post["data"]["title"]),
-        "author": f'u/{post["data"]["author"]}',
-        "subreddit": f'r/{post["data"]["subreddit"]}',
-        "reddit_post_url": f'www.reddit.com/{post["data"]["permalink"]}',
-        "image_url": post["data"]["url"],
-    }
-
-    return post
-
 
 def insert_post(post):
     """Inserts a reddit post into the database"""
@@ -117,12 +78,12 @@ def insert_post(post):
             "INSERT INTO posts (post_id, meme_text, author, subreddit, \
             reddit_post_url, image_url) VALUES (%s, %s, %s, %s, %s, %s)",
             (
-                post["id"],
-                post["text"],
-                post["author"],
-                post["subreddit"],
-                post["reddit_post_url"],
-                post["image_url"],
+                post.id,
+                post.title,
+                post.author,
+                f'r/{post.subreddit.display_name}',
+                f'www.reddit.com{post.permalink}',
+                post.url,
             ),
         )
         connection.commit()
